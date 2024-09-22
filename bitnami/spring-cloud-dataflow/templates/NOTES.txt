@@ -72,49 +72,5 @@ To access Spring Cloud Data Flow dashboard from outside the cluster execute the 
 {{- include "common.warnings.rollingTag" .Values.waitForBackends.image }}
 {{- include "scdf.validateValues" . }}
 
-{{- $passwordErrors := list -}}
-{{- $secretNameMariadb := include "scdf.mariadb.fullname" . -}}
-{{- $secretNameRabbitmq := include "scdf.rabbitmq.secretName" . -}}
-{{- $existingRabbitmqSecret := coalesce .Values.externalRabbitmq.existingSecret .Values.externalRabbitmq.existingPasswordSecret -}}
-
-{{/* Mysql required password */}}
-{{- $passwordMysqlErrors := include "common.validations.values.mariadb.passwords" (dict "secret" $secretNameMariadb "subchart" true "context" $) -}}
-{{- $passwordErrors = append $passwordErrors $passwordMysqlErrors -}}
-
-{{/* Rabbitmq required password */}}
-{{- if or .Values.rabbitmq.enabled (and .Values.externalRabbitmq.enabled (not $existingRabbitmqSecret)) -}}
-  {{- $rabbitmqValidations := list -}}
-  {{- $passwordValueKey := ternary "rabbitmq.auth.password" "externalRabbitmq.password" .Values.rabbitmq.enabled }}
-  {{- $rabbitmqValidations = append $rabbitmqValidations (dict "valueKey" $passwordValueKey "secret" $secretNameRabbitmq "field" "rabbitmq-password") -}}
-  {{- if .Values.rabbitmq.enabled -}}
-    {{- $rabbitmqValidations = append $rabbitmqValidations (dict "valueKey" "rabbitmq.auth.erlangCookie" "secret" $secretNameRabbitmq "field" "rabbitmq-erlang-cookie") -}}
-  {{- end -}}
-  {{- $requiredRabbitmqPasswordErrors := include "common.validations.values.multiple.empty" (dict "required" $rabbitmqValidations "context" $) -}}
-  {{- $passwordErrors =  append $passwordErrors $requiredRabbitmqPasswordErrors -}}
-{{- end }}
-
-{{- include "common.errors.upgrade.passwords.empty" (dict "validationErrors" $passwordErrors "context" $) -}}
-
-{{- if .Release.IsUpgrade -}}
-  {{- $passwordWarnings := list -}}
-
-  {{- if not .Values.mariadb.enabled -}}
-    {{- $secretNameServerExternalDb := printf "%s-externaldb" (include "scdf.server.fullname" .) -}}
-    {{- $requiredServerExternalDbPassword := dict "valueKey" "externalDatabase.dataflow.password" "secret" $secretNameServerExternalDb "field" "datasource-password" -}}
-    {{- $passwordWarnings = append $passwordWarnings $requiredServerExternalDbPassword -}}
-    {{- $secretNameSkipperExternalDb := printf "%s-externaldb" (include "scdf.skipper.fullname" .) -}}
-    {{- $requiredSkipperExternalDbPassword := dict "valueKey" "externalDatabase.skipper.password" "secret" $secretNameSkipperExternalDb "field" "datasource-password" -}}
-    {{- $passwordWarnings = append $passwordWarnings $requiredSkipperExternalDbPassword -}}
-  {{- end -}}
-  {{- if and .Values.externalRabbitmq.enabled (not .Values.rabbitmq.enabled) (not $existingRabbitmqSecret) -}}
-    {{- $requiredExternalRabbitmqPassword := dict "valueKey" "externalRabbitmq.password" "secret" $secretNameRabbitmq "field" "rabbitmq-password" -}}
-    {{- $passwordWarnings = append $passwordWarnings $requiredExternalRabbitmqPassword -}}
-  {{- end -}}
-
-  {{- if not (empty $passwordWarnings) -}}
-WARNING: Review values for the following password in the command, if they are correct please ignore this notice.
-    {{- include "common.validations.values.multiple.empty" (dict "required" $passwordWarnings "context" $) -}}
-  {{- end -}}
-{{- end -}}
 {{- include "common.warnings.resources" (dict "sections" (list "deployer" "metrics" "server" "skipper" "waitForBackends") "context" $) }}
 {{- include "common.warnings.modifiedImages" (dict "images" (list .Values.server.image .Values.server.composedTaskRunner.image .Values.skipper.image .Values.metrics.image .Values.waitForBackends.image .Values.mariadb.image) "context" $) }}

@@ -79,10 +79,6 @@ host. To configure Drupal to use and external database host:
     {{- $passwordValidationErrors = append $passwordValidationErrors $requiredDrupalPasswordError -}}
 {{- end -}}
 
-{{- $mariadbSecretName := include "drupal.databaseSecretName" . -}}
-{{- $mariadbPasswordValidationErrors := include "common.validations.values.mariadb.passwords" (dict "secret" $mariadbSecretName "subchart" true "context" $) -}}
-{{- $passwordValidationErrors = append $passwordValidationErrors $mariadbPasswordValidationErrors -}}
-
 {{- include "common.errors.upgrade.passwords.empty" (dict "validationErrors" $passwordValidationErrors "context" $) -}}
 {{- include "common.warnings.resources" (dict "sections" (list "metrics" "" "volumePermissions") "context" $) }}
 {{- include "common.warnings.modifiedImages" (dict "images" (list .Values.image .Values.volumePermissions.image .Values.metrics.image .Values.certificates.image) "context" $) }}
